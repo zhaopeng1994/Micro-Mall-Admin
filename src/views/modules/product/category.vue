@@ -1,11 +1,10 @@
 <template>
   <div>
     <el-switch v-model="draggable" active-text="开启拖拽" inactive-text="关闭拖拽"></el-switch>&nbsp;&nbsp;
-    <el-button type="danger" @click="removeBatch" plain>批量删除</el-button>
+    <el-button type="danger" @click="removeBatch" plain :disabled="checkedNodes.length <= 0">批量删除</el-button>
     <el-tree
       :data="categories"
       :props="defaultProps"
-      @node-click="handleNodeClick"
       show-checkbox
       node-key="catId"
       :expand-on-click-node=false
@@ -14,6 +13,7 @@
       :allow-drop="allowDrop"
       @node-drag-start="nodeDragStart"
       @node-drop="handleDrop"
+      @check="check"
       ref="categoryTree"
     >
       <span class="custom-tree-node" slot-scope="{ node, data }">
@@ -98,12 +98,13 @@ export default {
         children: "subCategories",
         label: "name",
       },
-      toUpdateNodes: []
+      toUpdateNodes: [],
+      checkedNodes: []
     };
   },
   methods: {
-    handleNodeClick(data) {
-      
+    check(node, data) {
+      this.checkedNodes = data.checkedNodes;
     },
     getCategories() {
       this.$http({
@@ -214,32 +215,26 @@ export default {
     },
     removeBatch() { // 批量删除
       let checkedNodes = this.$refs.categoryTree.getCheckedNodes();
-      if (checkedNodes.length === 0) {
-        this.$message({
-          message: '请先选择需要删除的商品分类！',
-          type: 'warning'
-        });
-      } else {
-        this.$confirm("请确定是否批量删除已选择分类？", "提示", {
-          confirmButtonText: "确定",
-          cancelButtonText: "取消",
-          type: "warning",
-        }).then(() => {
-          let ids = checkedNodes.map(item => item.catId);
-          console.info(checkedNodes, ids);
-          this.$http({
-            url: this.$http.adornUrl("/product/category/delete"),
-            method: "post",
-            data: this.$http.adornData(ids, false),
-          }).then(({ data }) => {
-            this.$message({
-              type: "success",
-              message: "删除成功！",
-            });
-            this.getCategories();
+      
+      this.$confirm("请确定是否批量删除已选择分类？", "提示", {
+        confirmButtonText: "确定",
+        cancelButtonText: "取消",
+        type: "warning",
+      }).then(() => {
+        let ids = checkedNodes.map(item => item.catId);
+        console.info(checkedNodes, ids);
+        this.$http({
+          url: this.$http.adornUrl("/product/category/delete"),
+          method: "post",
+          data: this.$http.adornData(ids, false),
+        }).then(({ data }) => {
+          this.$message({
+            type: "success",
+            message: "删除成功！",
           });
-        }).catch(() => {});
-      }
+          this.getCategories();
+        });
+      }).catch(() => {});
       
     },
     allowDrop(draggingNode, dropNode, type) {
@@ -315,6 +310,7 @@ export default {
         });
         this.getCategories();
         this.expandedKeys = [pCid];
+        this.checkedNodes = [];
       });
       
     }
